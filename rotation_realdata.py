@@ -45,48 +45,23 @@ dcm = np.zeros((3,3,steps))
 
 orientations[:,0] = np.transpose([1,0,0,0])
 angles[:,0] = np.deg2rad(quat.quat2deg(orientations[:,0]))
+dcm[0:3,0:3,0] = quat.quat2rotmat(orientations[:,0])
+
+for i in range(1,steps):
+    r = tstep*gyro_data[0:3, i]
+    halfsigmasq = .25*(r[0]**2 + r[1]**2 + r[2]**2)
+    term2 = halfsigmasq**2
+    sac = 1 - (halfsigmasq/2) + (term2/24)
+    sas = .5*(1 - (halfsigmasq/6) + (term2/120))
+    q = np.array([sac, r[0]*sas, r[1]*sas, r[2]*sas])
+    o = np.transpose(quat.quatmult(orientations[:, i-1], q))[:, 0]
+    o = o/np.transpose(np.linalg.norm(o))
+    orientations[:, i] = o
+    angles[:, i] = np.deg2rad(quat.quat2deg(orientations[:, i]))
+    dcm[0:3, 0:3, i] = quat.quat2rotmat(orientations[:, i])
 
 """ TODO: Finish translation """
 """
-dcm(1:3,1:3,1) = quat2dcm(orientations(1:4,1)');
-
-
-%from the book "Strapdown Intertial Navigation Technology", section 13.7
-for i = 2:steps
-
-    %Multiply the rates from the gyro by the time step length to get a
-    %rotation amount ("Zero-order hold assumption")
-    r = tstep*rates(1:3,i);
-
-    %Sigma is the magnitude of the vector of roll rates from the rate gyro,
-    %times the length of the time step
-    halfsigmasq = 0.25*(r(1)*r(1) + r(2)*r(2) + r(3)*r(3));
-    term2 = halfsigmasq*halfsigmasq;
-    
-    %modified taylor series expansions of sine and cosine
-    sac = 1 - halfsigmasq/2 + term2/24;
-    sas = 0.5*(1 - halfsigmasq/6 + term2/120);    
-
-    %the update quaternion as derived in the text; derivation is very
-    %mysterious
-    q = [sac, r(1)*sas, r(2)*sas, r(3)*sas];
-
-    %the updated orientatoin is the previous orientation times the update
-    %quaternion
-    o = quatmultiply(orientations(1:4, i-1)', q);
-
-    %renormalize the orientation at each time step by dividing by the
-    %length
-    o = o/norm(o)';
-    orientations(1:4, i) = o(1:4)';
-    
-    %calculate the euler angle and DCM equivalents
-    [angles(1,i), angles(2,i), angles(3,i)]  = quat2angle(orientations(1:4,i)');
-    angles(1:3,i) = rad2deg*angles(1:3,i);
-    dcm(1:3,1:3,i) = quat2dcm(orientations(1:4,i)');
-    
-end
-
 %Grab the magnetic field vector directly from the data by normalizing the
 %xyz axis magnetometer measurements
 magn = zeros(3, steps);
