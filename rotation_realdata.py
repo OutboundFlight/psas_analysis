@@ -36,6 +36,12 @@ gyro_data = zip(np.deg2rad(data[' [3]Gyro_X'][3650:28125]),
                 np.deg2rad(data[' [5]Gyro_Z'][3650:28125]))
 gyro_data = np.transpose(gyro_data)
 
+# magnetometer data
+mag_data = zip(data[' [9]Magn_X'][3650:28125],
+                data[' [10]Magn_Y'][3650:28125],
+                data[' [11]Magn_Z'][3650:28125])
+mag_data = np.transpose(mag_data)
+
 steps = len(time)
 tstep = np.mean(np.diff(time))
 
@@ -46,8 +52,13 @@ dcm = np.zeros((3,3,steps))
 orientations[:,0] = np.transpose([1,0,0,0])
 angles[:,0] = np.deg2rad(quat.quat2deg(orientations[:,0]))
 dcm[0:3,0:3,0] = quat.quat2rotmat(orientations[:,0])
+magn = np.zeros((3,steps))
+magrot = np.zeros((3,steps))
+
 
 for i in range(1,steps):
+
+    # gyro stuff
     r = tstep*gyro_data[0:3, i]
     halfsigmasq = .25*(r[0]**2 + r[1]**2 + r[2]**2)
     term2 = halfsigmasq**2
@@ -60,18 +71,13 @@ for i in range(1,steps):
     angles[:, i] = np.deg2rad(quat.quat2deg(orientations[:, i]))
     dcm[0:3, 0:3, i] = quat.quat2rotmat(orientations[:, i])
 
+    # magnetometer stuff
+    m = mag_data[:, i]
+    magn[:, i] = m/np.linalg.norm(m)
+    magrot[:, i] = np.dot(quat.quat2rotmat(quat.quatinv(orientations[:, i])), magn[:, i])
+
 """ TODO: Finish translation """
 """
-%Grab the magnetic field vector directly from the data by normalizing the
-%xyz axis magnetometer measurements
-magn = zeros(3, steps);
-magrot = zeros(3,steps);
-for i = 1:steps
-    m = [data(i, 10), data(i,11), data(i,12)]';
-    magn(:, i) = m/norm(m);
-    magrot(:,i) = quatrotate(quatinv(orientations(1:4, i)'), magn(:,i)');
-end
-
 %reshape matrices for quiver plots 
 x1 = reshape(dcm(1,1,:), 1, steps);
 y1 = reshape(dcm(2,1,:), 1, steps);
