@@ -74,6 +74,10 @@ for i in range(1,steps):
     # magnetometer stuff
     m = mag_data[:, i]
     magn[:, i] = m/np.linalg.norm(m)
+
+    # although this appears to be "dot product"
+    # this is how the matrix multiplication has to be handled
+    # in python...simply multiplying gives a 3x3 when it should be 3x1
     magrot[:, i] = np.dot(quat.quat2rotmat(quat.quatinv(orientations[:, i])), magn[:, i])
 
 """ TODO: Finish translation """
